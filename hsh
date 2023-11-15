@@ -1,0 +1,90 @@
+#include <unistd.h>
+#include "main.h"
+#include <string.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+/**
+ * execute_command - execute the given command
+ * @cmd: command to execute
+ * @token: array of tokens from the command
+ * @count: number of tokens
+ * Return: void
+ */
+void execute_command(char *cmd, char *token[], int count)
+{
+	pid_t child;
+	int status;
+	count = 0;
+	cmd = NULL;
+
+	child = fork();
+	if (child == -1)
+	{
+		perror("fork");
+	}
+	else if (child == 0)
+	{
+		if (execvp(token[0], token) == -1)
+		{
+			perror("");
+		}
+		splitstring(cmd, token, &count);
+		exit(EXIT_SUCCESS);
+	}
+	else
+	{
+		waitpid(child, &status, 0);
+	}
+}
+
+/**
+ * main - run simple_shell processes
+ * Return: on success 0
+ */
+int main(void)
+{
+	char *cmd;
+	ssize_t readline;
+	size_t len;
+	char *token[MAX_TOKEN];
+	int count = 0;
+	int status;
+
+	cmd = NULL;
+	while (1)
+	{
+		prompt();
+		readline = _getline(&cmd, &len, stdin);
+		if (readline == -1)
+		{
+			write(STDOUT_FILENO, "\n", 1);
+			break;
+		}
+		if (cmd[readline - 1] == '\n')
+		{
+			cmd[readline - 1] = '\0';
+		}
+		if (strcmp(cmd, "env") == 0)
+		{
+			printenv();
+		}
+		splitstring(cmd, token, &count);
+		if (strncmp(cmd, "exit", 4) == 0)
+		{
+			status = string_to_int(cmd + 5);
+			if (status < 0 || status > 255)
+			{
+				exit(EXIT_FAILURE);
+			}
+			else
+			{
+				custom_exit(status);
+			}
+		}
+		execute_command(cmd, token, count);
+	}
+	free(cmd);
+	return (0);
+}
