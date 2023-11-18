@@ -1,38 +1,38 @@
 #include "shell.h"
 
 /**
- * shell_loop - main shell loop
- * @info: struct containing shell information
- * @av: argument vector from main()
+ * hsh - main shell loop
+ * @info: the parameter & return info struct
+ * @av: the argument vector from main()
  *
  * Return: 0 on success, 1 on error, or error code
  */
-int shell_loop(info_t *info, char **av)
+int hsh(info_t *info, char **av)
 {
-	ssize_t read_status = 0;
+	ssize_t r = 0;
 	int builtin_ret = 0;
 
-	while (read_status != -1 && builtin_ret != -2)
+	while (r != -1 && builtin_ret != -2)
 	{
 		clear_info(info);
-		if (is_interactive(info))
+		if (interactive(info))
 			_puts("$ ");
 		_eputchar(BUF_FLUSH);
-		read_status = get_input(info);
-		if (read_status != -1)
+		r = get_input(info);
+		if (r != -1)
 		{
 			set_info(info, av);
 			builtin_ret = find_builtin(info);
 			if (builtin_ret == -1)
-				find_command(info);
+				find_cmd(info);
 		}
-		else if (is_interactive(info))
+		else if (interactive(info))
 			_putchar('\n');
 		free_info(info, 0);
 	}
 	write_history(info);
 	free_info(info, 1);
-	if (!is_interactive(info) && info->status)
+	if (!interactive(info) && info->status)
 		exit(info->status);
 	if (builtin_ret == -2)
 	{
@@ -45,25 +45,25 @@ int shell_loop(info_t *info, char **av)
 
 /**
  * find_builtin - finds a builtin command
- * @info: struct containing shell information
+ * @info: the parameter & return info struct
  *
  * Return: -1 if builtin not found,
- *         0 if builtin executed successfully,
- *         1 if builtin found but not successful,
- *         -2 if builtin signals exit()
+ *			0 if builtin executed successfully,
+ *			1 if builtin found but not successful,
+ *			-2 if builtin signals exit()
  */
 int find_builtin(info_t *info)
 {
 	int i, built_in_ret = -1;
 	builtin_table builtintbl[] = {
-		{"exit", my_exit},
-		{"env", my_env},
-		{"help", my_help},
-		{"history", my_history},
-		{"setenv", my_setenv},
-		{"unsetenv", my_unsetenv},
-		{"cd", my_cd},
-		{"alias", my_alias},
+		{"exit", _myexit},
+		{"env", _myenv},
+		{"help", _myhelp},
+		{"history", _myhistory},
+		{"setenv", _mysetenv},
+		{"unsetenv", _myunsetenv},
+		{"cd", _mycd},
+		{"alias", _myalias},
 		{NULL, NULL}
 	};
 
@@ -78,15 +78,15 @@ int find_builtin(info_t *info)
 }
 
 /**
- * find_command - finds a command in PATH
- * @info: struct containing shell information
+ * find_cmd - finds a command in PATH
+ * @info: the parameter & return info struct
  *
  * Return: void
  */
-void find_command(info_t *info)
+void find_cmd(info_t *info)
 {
 	char *path = NULL;
-	int i, word_count;
+	int i, k;
 
 	info->path = info->argv[0];
 	if (info->linecount_flag == 1)
@@ -94,23 +94,23 @@ void find_command(info_t *info)
 		info->line_count++;
 		info->linecount_flag = 0;
 	}
-	for (i = 0, word_count = 0; info->arg[i]; i++)
-		if (!is_delimiter(info->arg[i], " \t\n"))
-			word_count++;
-	if (!word_count)
+	for (i = 0, k = 0; info->arg[i]; i++)
+		if (!is_delim(info->arg[i], " \t\n"))
+			k++;
+	if (!k)
 		return;
 
 	path = find_path(info, _getenv(info, "PATH="), info->argv[0]);
 	if (path)
 	{
 		info->path = path;
-		fork_command(info);
+		fork_cmd(info);
 	}
 	else
 	{
-		if ((is_interactive(info) || _getenv(info, "PATH=")
-					|| info->argv[0][0] == '/') && is_cmd(info, info->argv[0]))
-			fork_command(info);
+		if ((interactive(info) || _getenv(info, "PATH=")
+			|| info->argv[0][0] == '/') && is_cmd(info, info->argv[0]))
+			fork_cmd(info);
 		else if (*(info->arg) != '\n')
 		{
 			info->status = 127;
@@ -120,18 +120,19 @@ void find_command(info_t *info)
 }
 
 /**
- * fork_command - forks a new process to run a command
- * @info: struct containing shell information
+ * fork_cmd - forks a an exec thread to run cmd
+ * @info: the parameter & return info struct
  *
  * Return: void
  */
-void fork_command(info_t *info)
+void fork_cmd(info_t *info)
 {
 	pid_t child_pid;
 
 	child_pid = fork();
 	if (child_pid == -1)
 	{
+		/* TODO: PUT ERROR FUNCTION */
 		perror("Error:");
 		return;
 	}
@@ -144,6 +145,7 @@ void fork_command(info_t *info)
 				exit(126);
 			exit(1);
 		}
+		/* TODO: PUT ERROR FUNCTION */
 	}
 	else
 	{
